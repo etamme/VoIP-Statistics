@@ -8,22 +8,37 @@ from scipy.spatial.distance import euclidean
 _SQRT2 = np.sqrt(2)     # sqrt(2) with default precision np.float64
 
 
+# a histogram that represents the values, and the percentage of the total they 
+# make up in the generated data set
+#
+# the data values are the keys, the percent is the value
+# NOTE data values WIlL BE DIVIDED BY 100
+# this is so we can use randInt and still end up with data values like 0.02
+#
+# EXAMPLE
+# 0-.02 = 25%,  .02-.30 = 75%, .30-5.00 = 5%
+# callHist={'2':25,'30':70,'500':5}
+callHist={'2':30,'30':70}
+
+# total number of data points
+numCalls=5000
+
+# create fraudulent traffic?
+fraud=1
+# total number of fraudulent calls to create
+fraudCalls=500
+# minimum and maximum value of fraud data points
+# NOTE this will be divided by 100
+fraudMin=75
+fraudMax=1500
 
 
+# calculates euclidean distance between two lists
 def hellinger(p, q):
   return euclidean(np.sqrt(p), np.sqrt(q)) / _SQRT2
 
-#if len(sys.argv) < 5:
-#  print "Usage: "+sys.argv[0]+" min, max, fraud, printAvg"
-#  sys.exit(0)
 
-
-callHist={'2':25,'30':70,'500':5}
-numCalls=5000
-fraudCalls=500
-fraudMin=75
-fraudMax=1500
-fraud=1
+# generate data set
 keys=callHist.keys()
 keys=map(int,keys)
 keys.sort()
@@ -42,26 +57,30 @@ for i in range(len(keys)):
     val=randint(minVal,maxVal)/100.0
     data.append(val)
 
-fraudData=[]
-for c in range(fraudCalls):
-    val=randint(fraudMin,fraudMax)/100.0
-    fraudData.append(val)
 
+# randomize the calls since they have been generated in order of histogram keys
 shuffle(data)
-nofraud=list(data)
 
-mididx=numCalls/2
-front=data[0:mididx]
-end=data[mididx+1:]
+if fraud==1:
+  # make a copy of the data before injecting fraud so we have a training set
+  nofraud=list(data)
+  fraudData=[]
+  for c in range(fraudCalls):
+      val=randint(fraudMin,fraudMax)/100.0
+      fraudData.append(val)
 
-mididx=len(end)/2
-middle=end[0:mididx]+fraudData
-shuffle(middle)
+  # slice and dice the data so that the fraud is inserted into the middle, and
+  # mixed in with the non-fraudulent data
+  mididx=numCalls/2
+  front=data[0:mididx]
+  end=data[mididx+1:]
+  mididx=len(end)/2
+  middle=end[0:mididx]+fraudData
+  shuffle(middle)
+  tail=end[mididx+1:]
+  data=front+middle+tail
 
-tail=end[mididx+1:]
-
-data=front+middle+tail
-
+# calculate helligers distance on a moving set of 20 calls
 dist1= [float(i)/sum(data[:20]) for i in data[:20]]
 dist2=list(data[:20])
 distData=[]
@@ -117,7 +136,6 @@ plt.title('hellinger distance')
 plt.plot(distData)
 if hits >=10:
   plt.plot([hitx],[threshold],'or')
-  print "detected after: "+str(hitx-1000)
 
 plt.axhline(distAvg,0,3000,color='r')
 plt.axhline(threshold,0,3000,color='g')
