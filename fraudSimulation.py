@@ -66,16 +66,17 @@ def generateData(hist,numcalls):
   return data
 
 def createDistribution(data):
+  global numCalls
   data1=[1,2,3,4,5,6,7,8,9,10]
   dist1=[]
   buckets={0:.03,1:.30,2:.40,3:.70,4:.80,5:.90,6:1,7:2,8:4,9:9}
   prev=0
   # create histogram based on buckets for supplied data
   for k,v in buckets.iteritems():
-    data1[k]=sum(i > prev and i <=v for i in data[:1000])
+    data1[k]=sum(i > prev and i <=v for i in data[:numCalls/2])
     prev=v
   # normalize the data set
-  dist1= [float(i)/sum(data1) for i in data1[:1000]]
+  dist1= [float(i)/sum(data1) for i in data1[:numCalls/2]]
   return dist1
 
 
@@ -92,6 +93,22 @@ def generateDistance(data):
     dist2=createDistribution(window)
     distData.append(hellinger(dist1,dist2))
   return distData
+
+def detectThreshold(data,threshold):
+  i=0
+  total=0
+  for v in data:
+    if v >= threshold:
+      total+=v
+      print "threshold exceeded: "+str(v)+" total: "+str(total)+" index: "+str(i)
+      if total>10:
+        return i
+
+    if i % 100 == 0:
+      total=0
+    i+=1
+  return 0
+
 
 # generate data sets
 data=generateData(callHist,numCalls)
@@ -133,16 +150,7 @@ avg=sum(data)/len(data)
 threshold=distAvg+(2*distStd)
 hits=sum( i > threshold for i in distData)
 
-hitx=0
-hitcount=0
-for v in distData:
-  if v > threshold:
-    hitcount+=1
-  if hitcount >= 10:
-    break
-  hitx+=1
-  if hitx % 100 == 0:
-    hitcount=0
+hitx=detectThreshold(distData,threshold)
 
 print "avg: "+str(avg)
 print "distavg: "+str(distAvg)
@@ -158,7 +166,7 @@ plt.plot(data)
 plt.figure(3)
 plt.title('hellinger distance')
 plt.plot(distData)
-if hits >=10:
+if hitx >=0:
   plt.plot([hitx],[threshold],'or')
 
 plt.axhline(distAvg,0,3000,color='r')
