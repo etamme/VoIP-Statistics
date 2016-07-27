@@ -38,7 +38,8 @@ numCalls=5000
 fraud=1
 # total number of fraudulent calls to create
 numFraudCalls=500
-fraudHist={'100':[150,300]}
+fraudHist={'70':[150,200],
+           '30':[100,200]}
 
 # calculates euclidean distance between two lists
 def hellinger(p, q):
