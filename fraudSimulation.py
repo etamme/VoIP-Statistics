@@ -7,68 +7,78 @@ from scipy.spatial.distance import euclidean
 
 _SQRT2 = np.sqrt(2)     # sqrt(2) with default precision np.float64
 
-
 # a histogram that represents the values, and the percentage of the total they 
 # make up in the generated data set
 #
-# the data values are the keys, the percent is the value
-# NOTE data values WIlL BE DIVIDED BY 100
-# this is so we can use randInt and still end up with data values like 0.02
+# the key is the percentage, and the value is a two element array with
+# a minimum, and maximum value
+#
+# NOTE - the min/max values will be divided by 100
 #
 # EXAMPLE
-# 0-.02 = 25%,  .02-.30 = 75%, .30-5.00 = 5%
-# callHist={'2':25,'30':70,'500':5}
-callHist={'2':30,'30':70}
+# .10-.29 = 20%
+# .50-.65 = 75%
+# .90-5.00 = 5%
+#
+# callHist={'20':[10,290],
+#           '75':[50,65],
+#           '5' :[90,500]}
 
+callHist={'19':[20,30],
+          '30':[30,40],
+          '21':[50,70],
+          '20':[70,80],
+          '10':[80,90]}
 # total number of data points
 numCalls=5000
 
 # create fraudulent traffic?
 fraud=1
 # total number of fraudulent calls to create
-fraudCalls=500
-# minimum and maximum value of fraud data points
-# NOTE this will be divided by 100
-fraudMin=75
-fraudMax=1500
-
+numFraudCalls=500
+fraudHist={'90':[100,300],
+           '10':[400,500]}
 
 # calculates euclidean distance between two lists
 def hellinger(p, q):
   return euclidean(np.sqrt(p), np.sqrt(q)) / _SQRT2
 
+def generateData(hist,numcalls):
+  print hist
+  data=[]
+  for k,v in hist.iteritems():
+    minVal=int(min(v))
+    maxVal=int(max(v))
+    percent=float(k)
+    calls=numcalls*(percent/100.0)
+    print str(calls)+" between "+str(minVal)+" - "+str(maxVal)
+    for c in range(int(calls)):
+      val=randint(minVal,maxVal)/100.0
+      data.append(val)
+  shuffle(data)
+  return data
 
-# generate data set
-keys=callHist.keys()
-keys=map(int,keys)
-keys.sort()
-data=[]
-for i in range(len(keys)):
-  if i == 0:
-    minVal=1
-  else:
-    minVal=int(keys[i-1])
+# calculate helligers distance on a moving set of 20 calls
+def generateDistance(data):
+  distData=[]
+  # the first 20 calls is used as a fixed training set to compare against
+  # a moving window of 20 calls.  This set is normalized.
+  dist1= [float(i)/sum(data[:20]) for i in data[:20]]
+  dist2=list(data[:20])
+  # calculate the distance on the moving window
+  for v in data:
+    dist2.pop(0)
+    dist2.append(v)
+    distData.append(hellinger(dist1,[float(i)/sum(dist2) for i in dist2]))
+  return distData
 
-  maxVal=int(keys[i])
-
-  percent=float(callHist[str(keys[i])])
-  calls=numCalls*(percent/100.0)
-  for c in range(int(calls)):
-    val=randint(minVal,maxVal)/100.0
-    data.append(val)
-
-
-# randomize the calls since they have been generated in order of histogram keys
-shuffle(data)
+# generate data sets
+data=generateData(callHist,numCalls)
 
 if fraud==1:
   # make a copy of the data before injecting fraud so we have a training set
   nofraud=list(data)
-  fraudData=[]
-  for c in range(fraudCalls):
-      val=randint(fraudMin,fraudMax)/100.0
-      fraudData.append(val)
-
+  fraudData=generateData(fraudHist,numFraudCalls)
   # slice and dice the data so that the fraud is inserted into the middle, and
   # mixed in with the non-fraudulent data
   mididx=numCalls/2
@@ -80,27 +90,19 @@ if fraud==1:
   tail=end[mididx+1:]
   data=front+middle+tail
 
-# calculate helligers distance on a moving set of 20 calls
-dist1= [float(i)/sum(data[:20]) for i in data[:20]]
-dist2=list(data[:20])
-distData=[]
-for v in data:
-  dist2.pop(0)
-  dist2.append(v)
-  distData.append(hellinger(dist1,[float(i)/sum(dist2) for i in dist2]))
+# create our list of distances
+distData=generateDistance(data)
 
 if fraud==1:
+  # buckets for scaling price histogram 
   buckets = [0,1,2,4,9,16,25,36,49]
-  dist2=list(nofraud[:20])
-  fraudDistData=[]
-  for v in nofraud:
-    dist2.pop(0)
-    dist2.append(v)
-    fraudDistData.append(hellinger(dist1,[float(i)/sum(dist2) for i in dist2]))
+  # create a list of distance based on no fraud, so we can calculate
+  # avg and stdev without fraud traffic included
+  fraudDistData=generateDistance(nofraud)
   distAvg=sum(fraudDistData)/len(fraudDistData)
   distStd=np.std(fraudDistData)
-
 else:
+  # buckets for scaling price histogram 
   buckets = [0.01,0.10,0.20,0.40,0.90,1.6,2.5,3.6,4.9]
   distAvg=sum(distData)/len(distData)
   distStd=np.std(distData)
