@@ -28,7 +28,9 @@ callHist={'19':[20,30],
           '30':[30,40],
           '21':[50,70],
           '20':[70,80],
-          '10':[80,90]}
+          '8' :[80,90],
+          '2' :[100,200]}
+
 # total number of data points
 numCalls=5000
 
@@ -36,15 +38,20 @@ numCalls=5000
 fraud=1
 # total number of fraudulent calls to create
 numFraudCalls=500
-fraudHist={'90':[100,300],
-           '10':[400,500]}
+fraudHist={'100':[150,300]}
 
 # calculates euclidean distance between two lists
 def hellinger(p, q):
   return euclidean(np.sqrt(p), np.sqrt(q)) / _SQRT2
 
+def generateDuration(data,fraud):
+  if fraud==1:
+    rate=1.0
+  else:
+    rate=.029
+  return [v / rate for v in data]
+
 def generateData(hist,numcalls):
-  print hist
   data=[]
   for k,v in hist.iteritems():
     minVal=int(min(v))
@@ -58,27 +65,42 @@ def generateData(hist,numcalls):
   shuffle(data)
   return data
 
+def createDistribution(data):
+  data1=[1,2,3,4,5,6,7,8,9,10]
+  dist1=[]
+  buckets={0:.03,1:.30,2:.40,3:.70,4:.80,5:.90,6:1,7:2,8:4,9:9}
+  prev=0
+  # create histogram based on buckets for supplied data
+  for k,v in buckets.iteritems():
+    data1[k]=sum(i > prev and i <=v for i in data[:1000])
+    prev=v
+  # normalize the data set
+  dist1= [float(i)/sum(data1) for i in data1[:1000]]
+  return dist1
+
+
 # calculate helligers distance on a moving set of 20 calls
 def generateDistance(data):
   distData=[]
-  # the first 20 calls is used as a fixed training set to compare against
-  # a moving window of 20 calls.  This set is normalized.
-  dist1= [float(i)/sum(data[:20]) for i in data[:20]]
-  dist2=list(data[:20])
+  window=data[:20]
+  dist1=createDistribution(data[:20])
+  dist2=list(dist1)
   # calculate the distance on the moving window
   for v in data:
-    dist2.pop(0)
-    dist2.append(v)
-    distData.append(hellinger(dist1,[float(i)/sum(dist2) for i in dist2]))
+    window.pop(0)
+    window.append(v)
+    dist2=createDistribution(window)
+    distData.append(hellinger(dist1,dist2))
   return distData
 
 # generate data sets
 data=generateData(callHist,numCalls)
-
+duration=generateDuration(data,0)
 if fraud==1:
   # make a copy of the data before injecting fraud so we have a training set
   nofraud=list(data)
   fraudData=generateData(fraudHist,numFraudCalls)
+  fraudDuration=generateDuration(fraudData,1)
   # slice and dice the data so that the fraud is inserted into the middle, and
   # mixed in with the non-fraudulent data
   mididx=numCalls/2
