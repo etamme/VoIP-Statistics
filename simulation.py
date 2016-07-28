@@ -34,22 +34,36 @@ cHist={'19':[20,30],
 # total number of data points
 numCalls=5000
 
+# min/max delta for abnormal calls
+cDeltaMin=100
+cDeltaMax=150
+
 # create abnormal traffic?
 abnormal=1
 
 # total number of abnormal calls to create
 numACalls=500
+
 #aHist={'70':[150,200],
 #           '30':[100,200]}
 
-aHist={'30':[150,200],
-       '70':[100,200]}
+aHist={'70':[70,90],
+       '20':[100,200],
+       '10':[200,250]}
+
+
+
+# min/max delta for abnormal calls
+aDeltaMin=30
+aDeltaMax=50
 
 # number of threshold triggers before alert
 # hits for hellinger
 hHits=10
 # hits for mahalanobis
-mHits=10
+mHits=30
+# hits for standard deviation
+sHits=10
 
 # calculates euclidean distance between two lists
 def hellingerDistance(p, q):
@@ -77,13 +91,7 @@ def generateDuration(data,abnormal):
   return [v / rate for v in data]
 
 # simulate interarrival delta of calls
-def generateDelta(data,abnormal):
-  if abnormal==1:
-    minD=1
-    maxD=10
-  else:
-    minD=100
-    maxD=150
+def generateDelta(data,minD,maxD):
   return [randint(minD,maxD)/100.0 for v in data]
 
 # simulate a number of call prices given a histogram
@@ -179,21 +187,23 @@ def spliceLists(data1,data2):
 # these contain no abnormal traffic.  If we are to generate abnormal traffic,
 # we do so later, and splice it into the middle of these data sets
 data1=generatePrices(cHist,numCalls)
-data2=generateDelta(data1,0)
+data2=generateDelta(data1,cDeltaMin,cDeltaMax)
 
 # generate reference distances
-hDistRef=movingHD(data1)
-mDistRef=movingMD(data1,data2)
+hDistRefData1=movingHD(data1)
+hDistRefData2=movingHD(data2)
+mDistRef=mahalanobisDistance(data1,data2)
 # generate reference statistics on data sets
 data1RefStats=generateStats(data1)
 data2RefStats=generateStats(data2)
-hDistRefStats=generateStats(hDistRef)
+hDistRefStatsData1=generateStats(hDistRefData1)
+hDistRefStatsData2=generateStats(hDistRefData2)
 mDistRefStats=generateStats(mDistRef)
 
 # generate abnormal traffic and splice it into normal traffic
 if abnormal==1:
   data3=generatePrices(aHist,numACalls)
-  data4=generateDelta(data3,1)
+  data4=generateDelta(data3,aDeltaMin,aDeltaMax)
 
   data1=spliceLists(data1,data3)
   data2=spliceLists(data2,data4)
@@ -204,17 +214,32 @@ else:
 
 # data1 and data2 will have abnormal traffic mixed in at this point if we
 # were supposed to generate it, so generate new distances, and statsistics
-hDist=movingHD(data1)
-mDist=movingMD(data1,data2)
+hDistData1=movingHD(data1)
+hDistData2=movingHD(data2)
+
+mDist=mahalanobisDistance(data1,data2)
+mDistStats=generateStats(mDist)
+
 data1Stats=generateStats(data1)
 data2Stats=generateStats(data2)
 
-hHitX=detectThreshold(hDist,hDistRefStats['trs'],hHits)
-mHitX=detectThreshold(mDist,mDistRefStats['trs'],mHits)
+hDistStatsData1=generateStats(hDistRefData1)
+hDistStatsData2=generateStats(hDistRefData2)
 
-# price histogram
-plt.hist(data1,buckets, histtype='bar', rwidth=0.8)
-plt.title('price histogram')
+sHitXData1=detectThreshold(data1,data1RefStats['trs'],sHits)
+hHitXData1=detectThreshold(hDistData1,hDistRefStatsData1['trs'],hHits)
+hHitXData2=detectThreshold(hDistData2,hDistRefStatsData2['trs'],hHits)
+mHitX=detectThreshold(mDist,mDistRefStats['trs']+mDistRefStats['std'],mHits)
+
+# data 2
+plt.figure(1)
+plt.title('hellinger distance on interval')
+plt.plot(hDistData2)
+if hHitXData2 >0:
+  plt.plot([hHitXData2],[hDistRefStatsData2['trs']],'or')
+plt.axhline(hDistStatsData2['avg'],0,3000,color='r')
+plt.axhline(hDistStatsData2['trs'],0,3000,color='g')
+
 
 # price
 plt.figure(2)
@@ -223,12 +248,12 @@ plt.plot(data1)
 
 # hellinger distance on price
 plt.figure(3)
-plt.title('hellinger distance')
-plt.plot(hDist)
-if hHitX >=0:
-  plt.plot([hHitX],[hDistRefStats['trs']],'or')
-plt.axhline(hDistRefStats['avg'],0,3000,color='r')
-plt.axhline(hDistRefStats['trs'],0,3000,color='g')
+plt.title('hellinger distance on price')
+plt.plot(hDistData1)
+if hHitXData1 >0:
+  plt.plot([hHitXData1],[hDistRefStatsData1['trs']],'or')
+plt.axhline(hDistRefStatsData1['avg'],0,3000,color='r')
+plt.axhline(hDistRefStatsData1['trs'],0,3000,color='g')
 
 # mahalanobis distance of data1 and data2
 plt.figure(4)
@@ -236,13 +261,22 @@ plt.title('mahalanobis distance')
 plt.plot(mDist)
 plt.axhline(mDistRefStats['avg'],0,3000,color='r')
 plt.axhline(mDistRefStats['trs'],0,3000,color='g')
-if mHitX >=0:
+if mHitX >0:
   plt.plot([mHitX],[mDistRefStats['trs']],'or')
 
 # data2
 plt.figure(5)
 plt.title('interarrival delta')
 plt.plot(data2)
+
+# std deviation on data 1
+plt.figure(6)
+plt.title('standard deviation on price')
+plt.plot(data1)
+if sHitXData1 >0:
+  plt.plot([sHitXData1],[data1RefStats['trs']],'or')
+plt.axhline(data1RefStats['avg'],0,3000,color='r')
+plt.axhline(data1RefStats['trs'],0,3000,color='g')
 
 # display plot
 plt.show()
