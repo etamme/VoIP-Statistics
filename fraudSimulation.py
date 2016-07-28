@@ -38,12 +38,28 @@ numCalls=5000
 fraud=1
 # total number of fraudulent calls to create
 numFraudCalls=500
-fraudHist={'70':[150,200],
-           '30':[100,200]}
+#fraudHist={'70':[150,200],
+#           '30':[100,200]}
 
+fraudHist={'30':[150,200],
+           '70':[100,200]}
 # calculates euclidean distance between two lists
 def hellinger(p, q):
   return euclidean(np.sqrt(p), np.sqrt(q)) / _SQRT2
+
+def mahalanobisDistance(x, y):
+    covariance_xy = np.cov(x,y, rowvar=0)
+    inv_covariance_xy = np.linalg.inv(covariance_xy)
+    xy_mean = np.mean(x),np.mean(y)
+    x_diff = np.array([x_i - xy_mean[0] for x_i in x])
+    y_diff = np.array([y_i - xy_mean[1] for y_i in y])
+    diff_xy = np.transpose([x_diff, y_diff])
+
+    md = []
+    for i in range(len(diff_xy)):
+        md.append(np.sqrt(np.dot(np.dot(np.transpose(diff_xy[i]),inv_covariance_xy),diff_xy[i])))
+    return md
+
 
 def generateDuration(data,fraud):
   if fraud==1:
@@ -130,8 +146,20 @@ if fraud==1:
   tail=end[mididx+1:]
   data=front+middle+tail
 
+  # do the same with duration data
+  mididx=numCalls/2
+  front=duration[0:mididx]
+  end=duration[mididx+1:]
+  mididx=len(end)/2
+  middle=end[0:mididx]+fraudDuration
+  shuffle(middle)
+  tail=end[mididx+1:]
+  duration=front+middle+tail
+
+
 # create our list of distances
 distData=generateDistance(data)
+mahaDist=mahalanobisDistance(data,duration)
 
 if fraud==1:
   # buckets for scaling price histogram 
@@ -172,7 +200,9 @@ if hitx >=0:
 
 plt.axhline(distAvg,0,3000,color='r')
 plt.axhline(threshold,0,3000,color='g')
+plt.figure(4)
+plt.title('mahalanobis distance')
+plt.plot(mahaDist)
 plt.show()
-
 
 
