@@ -231,52 +231,55 @@ hHitXData1=detectThreshold(hDistData1,hDistRefStatsData1['trs'],hHits)
 hHitXData2=detectThreshold(hDistData2,hDistRefStatsData2['trs'],hHits)
 mHitX=detectThreshold(mDist,mDistRefStats['trs']+mDistRefStats['std'],mHits)
 
+fig = plt.figure(figsize=(18,10))
+fig.suptitle("VoIP Statistics - Eric Tamme")
+
 # data 2
-plt.figure(1)
-plt.title('hellinger distance on interval')
-plt.plot(hDistData2)
+ax = plt.subplot("231")
+ax.set_title('hellinger distance on interval')
+ax.plot(hDistData2)
 if hHitXData2 >0:
-  plt.plot([hHitXData2],[hDistRefStatsData2['trs']],'or')
-plt.axhline(hDistStatsData2['avg'],0,3000,color='r')
-plt.axhline(hDistStatsData2['trs'],0,3000,color='g')
+  ax.plot([hHitXData2],[hDistRefStatsData2['trs']],'or')
+ax.axhline(hDistStatsData2['avg'],0,3000,color='r')
+ax.axhline(hDistStatsData2['trs'],0,3000,color='g')
 
 
 # price
-plt.figure(2)
-plt.title('price')
-plt.plot(data1)
+ax = plt.subplot("232")
+ax.set_title('price')
+ax.plot(data1)
 
 # hellinger distance on price
-plt.figure(3)
-plt.title('hellinger distance on price')
-plt.plot(hDistData1)
+ax = plt.subplot("233")
+ax.set_title('hellinger distance on price')
+ax.plot(hDistData1)
 if hHitXData1 >0:
-  plt.plot([hHitXData1],[hDistRefStatsData1['trs']],'or')
-plt.axhline(hDistRefStatsData1['avg'],0,3000,color='r')
-plt.axhline(hDistRefStatsData1['trs'],0,3000,color='g')
+  ax.plot([hHitXData1],[hDistRefStatsData1['trs']],'or')
+ax.axhline(hDistRefStatsData1['avg'],0,3000,color='r')
+ax.axhline(hDistRefStatsData1['trs'],0,3000,color='g')
 
 # mahalanobis distance of data1 and data2
-plt.figure(4)
-plt.title('mahalanobis distance')
-plt.plot(mDist)
-plt.axhline(mDistRefStats['avg'],0,3000,color='r')
-plt.axhline(mDistRefStats['trs'],0,3000,color='g')
+ax = plt.subplot("234")
+ax.set_title('mahalanobis distance')
+ax.plot(mDist)
+ax.axhline(mDistRefStats['avg'],0,3000,color='r')
+ax.axhline(mDistRefStats['trs'],0,3000,color='g')
 if mHitX >0:
-  plt.plot([mHitX],[mDistRefStats['trs']],'or')
+  ax.plot([mHitX],[mDistRefStats['trs']],'or')
 
 # data2
-plt.figure(5)
-plt.title('interarrival delta')
-plt.plot(data2)
+ax = plt.subplot("235")
+ax.set_title('interarrival delta')
+ax.plot(data2)
 
 # std deviation on data 1
-plt.figure(6)
-plt.title('standard deviation on price')
-plt.plot(data1)
+ax = plt.subplot("236")
+ax.set_title('standard deviation on price')
+ax.plot(data1)
 if sHitXData1 >0:
-  plt.plot([sHitXData1],[data1RefStats['trs']],'or')
-plt.axhline(data1RefStats['avg'],0,3000,color='r')
-plt.axhline(data1RefStats['trs'],0,3000,color='g')
+  ax.plot([sHitXData1],[data1RefStats['trs']],'or')
+ax.axhline(data1RefStats['avg'],0,3000,color='r')
+ax.axhline(data1RefStats['trs'],0,3000,color='g')
 
 # display plot
 plt.show()
